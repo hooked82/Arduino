@@ -1,9 +1,12 @@
 const int potentiometerPin = 1;
+const int lightSensorPin = 3;
 const int buttonPin = 3;
 
-const int RED_PIN = 0;
+const int RED_PIN = 4;
 const int GREEN_PIN = 1;
-const int BLUE_PIN = 4;
+const int BLUE_PIN = 0;
+
+const int ON_LEVEL = 700;
 
 const int MODE_SPECTRUM = 0;
 const int MODE_SOLID = 1;
@@ -14,8 +17,11 @@ int lastButtonState = HIGH;
 int mode = 0;
 
 int potentiometerValue;
+int lightLevel;
 
 void setup() {
+  //Serial.begin(9600);
+  
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(BLUE_PIN, OUTPUT);
@@ -25,18 +31,21 @@ void setup() {
 void loop() {
   int buttonState;
   potentiometerValue = analogRead(potentiometerPin);
+  lightLevel = analogRead(lightSensorPin);
   buttonState = digitalRead(buttonPin);
   
-  while (true) {
+  //Only turn on the LEDs if it's dark enough
+  while (lightLevel >= ON_LEVEL) {
+    
     if (mode == MODE_SOLID)
     {
       //Single Color Mode
       while (true) {
         potentiometerValue = analogRead(potentiometerPin);
-  
+
         //If mode button is pressed, change mode then reset
-        if (checkMode()) {
-          changeMode();
+        if (buttonPressed()) {
+          //changeMode();
           break;
         }
         changeColors(potentiometerValue);
@@ -50,10 +59,13 @@ void loop() {
       analogWrite(GREEN_PIN, random(15, 30));
       analogWrite(BLUE_PIN, 0);
       
-      if (checkMode()) {
-        changeMode();
+      if (buttonPressed()) {
+        //changeMode();
         break;
       }
+      
+      if (!isDarkEnough())
+          break;
           
       delay(random(100));
     }
@@ -66,10 +78,13 @@ void loop() {
         potentiometerValue = analogRead(potentiometerPin);
         
         //If mode button is pressed, change mode then reset
-        if (checkMode()) {
-          changeMode();
+        if (buttonPressed()) {
+          //changeMode();
           break;
         }
+        
+        if (!isDarkEnough())
+          break;
           
         showRGB(x);
         int wait = potentiometerValue/10;
@@ -83,11 +98,14 @@ void loop() {
   }
 }
 
-boolean checkMode() {
+//Checks to see if the button has been pressed
+boolean buttonPressed() {
   int state = digitalRead(buttonPin);
   
   if (state == LOW && lastButtonState == HIGH) {
     lastButtonState = state;
+    
+    changeMode();
   
     return true;
   }
@@ -96,6 +114,27 @@ boolean checkMode() {
   return false;
 }
 
+//Changes the mode when the button is pressed
+void changeMode() {
+  if (mode == MODE_FLICKER) {
+    mode = 0;
+  } else {
+    mode++;
+  }
+}
+
+boolean isDarkEnough() {
+  lightLevel = analogRead(lightSensorPin);
+  
+  if (lightLevel < ON_LEVEL) {
+    changeLEDS(LOW);
+    return false;
+  }
+  
+  return true;
+}
+
+//Single Color Mode
 void changeColors(int potVal) {
   int redVal = 0;
   int grnVal = 0;
@@ -139,20 +178,14 @@ void changeColors(int potVal) {
     analogWrite(BLUE_PIN, bluVal);  
 }
 
-void changeMode() {
-  if (mode == MODE_FLICKER) {
-    mode = 0;
-  } else {
-    mode++;
-  }
-}
-
+//Used to toggle LED state On/Off
 void changeLEDS(int level) {
   digitalWrite(RED_PIN, level);
   digitalWrite(GREEN_PIN, level);
   digitalWrite(BLUE_PIN, level);
 }
 
+//Full Spectrum Mode
 void showRGB(int color) {
   int redIntensity;
   int greenIntensity;
